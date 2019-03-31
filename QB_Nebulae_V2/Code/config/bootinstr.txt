@@ -1,0 +1,2 @@
+bank,factory
+instr,a_granularlooper

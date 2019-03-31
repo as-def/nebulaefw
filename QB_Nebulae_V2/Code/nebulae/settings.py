@@ -1,15 +1,16 @@
 import os
 from multiprocessing import Process
 from functools import partial
+import neb_globals
 
 class SettingManager(object):
     def __init__(self, config):
         self.settingDict = dict() # Container for Config Data
         self.defaultDict = dict()
         self.configData = config
-        self.filename = ".nebsettings"
+        self.filename = "nebsettings.txt"
         self.defaultsfilename = "defaultnebsettings.txt"
-        self.filepath = "/home/alarm/QB_Nebulae_V2/Code/"
+        self.filepath = "/home/alarm/QB_Nebulae_V2/Code/config/"
         self.lastUpdate = 0
         self.lines = []
         self.writeProcess = None
@@ -18,13 +19,20 @@ class SettingManager(object):
         settingList = []
         defaultList = []
         fpath = self.filepath + self.defaultsfilename
+        #print("Searching: \"" + fpath + "\" for settings.")
+        #print("Is file: " + str(os.path.isfile(fpath)))
+        #print("Size: " + str(os.path.getsize(fpath)))
         with open(fpath, 'r') as myfile:
             for line in myfile:
                 defaultList.append(line)
         self.populateDefaultDict(defaultList,self.defaultDict)
-        self.mutableSettings = self.settingDict.copy()
+        #self.mutableSettings = self.settingDict.copy()
         fpath = self.filepath + self.filename
+        #print("Searching: \"" + fpath + "\" for settings.")
+        #print("Is file: " + str(os.path.isfile(fpath)))
+        #print("Size: " + str(os.path.getsize(fpath)))
         if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
+            print("Found Previously saved settings")
             with open(self.filepath + self.filename, 'r') as myfile:
                 for line in myfile:
                     if line.strip():
@@ -32,16 +40,19 @@ class SettingManager(object):
             self.populateDict(settingList, self.settingDict)
             #self.mutableSettings = self.settingDict.copy()
         else:
+            print("Could not locate previous settings.")
             self.populateDict(defaultList, self.settingDict)
         self.mutableSettings = self.settingDict.copy()
 
     def write(self): 
         try:
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
             with open(self.filepath + self.filename, 'w') as myfile:
                 for line in self.lines:
                     myfile.write(line)
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
         except:
             print "Could not write .nebsettings file"
 
@@ -93,6 +104,7 @@ class SettingManager(object):
                 out = self.defaultDict[key]
             if out is None:
                 out = 0
+            print("Loading " + key + " value: " + str(out))
             return out
 
     def getLastUpdate(self):

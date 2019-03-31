@@ -10,6 +10,9 @@ import os
 import settings
 import time
 import threading
+import wavewriter
+import numpy as np
+
 
 # Defines for Button/Gate Types
 BUTTON_GATE_GPIO = 0
@@ -52,8 +55,10 @@ class ControlHandler(object):
         self.prep_mode_change = False
         self.prep_mode_change_time = self.now
         self.modeChangeValues = {}
-        #self.writeThread = threading.Thread(target=self.settings.write())
-        #self.writeThread.start()
+        self.writer = wavewriter.WaveWriter() 
+        self.writing_buffer = False
+        self.buffer_failure = False
+        self.performance_thread = None
 
         # Set Defaults/Read Config
         digitalControlList = [
@@ -68,7 +73,7 @@ class ControlHandler(object):
                 digitalConfig[ctrl] = self.configData.get(ctrl)
             else:
                 digitalConfig[ctrl] = self.defaultConfig.get(ctrl)
-            print "control: " + ctrl + " vals: " + str(digitalConfig[ctrl])
+            #print "control: " + ctrl + " vals: " + str(digitalConfig[ctrl])
 
         self.channels = [
             control.ControlChannel(self.csound, "speed", self.settings.load("speed"), "hybrid", 1),
@@ -135,24 +140,22 @@ class ControlHandler(object):
         self.eol_comm = control.CommChannel(self.csound, "eol")
         self.size_status_comm = control.CommChannel(self.csound, "sizestatus")
         self.record_status_comm = control.CommChannel(self.csound, "recordstatus")
+        self.buffer_size_comm = control.CommChannel(self.csound, "bufferlength")
         self.eol_gate_timer = 0
         self.reset_led_pin = 12
         #GPIO.setup(self.reset_led_pin, GPIO.OUT)
         self.channeldict["filestate"].setIgnoreGate(True)
         self.channeldict["sourcegate"].setIgnoreHID(True)
-        #for chn in self.channels:
-        #    if self.settings.hasSetting(chn.name):
-        #        chn.setValue(float(self.settings.load(chn.name)))
-        #        chn.update()
-        #self.enterSecondaryMode()
-        #for chn in self.altchannels:
-        #    if self.settings.hasSetting(chn.name):
-        #        chn.setValue(float(self.settings.load(chn.name)))
-        #        chn.update()
-        #self.enterNormalMode()
+        # Worker for writing audio file.
+        #self.writeThread = threading.Thread(target=self.writeBufferToAudioFile())
+        self.writeThread = threading.Thread(target=self.dummyThread())
+        self.writeThread.start()
     
 
 
+    # Pass Csound Performance Thread Pointer
+    def setCsoundPerformanceThread(self, ptr):
+        self.performance_thread = ptr
 
     # Generic Global Control Functions
     def setValue(self, name, value):
@@ -223,8 +226,8 @@ class ControlHandler(object):
             self.channeldict[self.modeChangeControl].setIgnoreNextButton()
         if self.control_mode == "secondary controls":
             self.resistSecondarySettings()
-        #self.settings.update(self.now)
-        #self.settings.write()
+        self.settings.update(self.now)
+        self.settings.write()
         self.altchanneldict["source_alt"].setValue(0)
         self.prev_control_mode = self.control_mode
         self.control_mode = "normal"
@@ -257,8 +260,8 @@ class ControlHandler(object):
             self.control_mode = "secondary controls"
         for chn in self.channels:
             chn.setIgnoreHID(True)
-        #self.settings.update(self.now)
-        #self.settings.write()
+        self.settings.update(self.now)
+        self.settings.write()
 
     def enterInstrSelMode(self):
         #self.modeChangeControl = "speed"
@@ -266,8 +269,8 @@ class ControlHandler(object):
         if self.control_mode == "normal" or self.control_mode == "puredata":
             print "entering instr selector"
             self.control_mode = "instr selector"
-        #self.settings.update(self.now)
-        #self.settings.write()
+        self.settings.update(self.now)
+        self.settings.write()
         for chn in self.channels:
             chn.muteCSound(True)
 
@@ -365,8 +368,6 @@ class ControlHandler(object):
                 if self.getValue("source") == 1:
                     self.setValue("pitch", 0.6)
                     self.setValue("speed", 0.625)
-        
-
         
 
     def getEditFunctionFlag(self, name):
@@ -512,6 +513,19 @@ class ControlHandler(object):
                                 elif chn.name == "source":
                                     self.setEditFunctionFlag(chn.name) 
                                     self.channeldict[chn.name].setIgnoreNextButton()
+                                elif chn.name == "freeze":
+                                    self.setEditFunctionFlag(chn.name) 
+                                    self.channeldict[chn.name].setIgnoreNextButton()
+                                    self.channeldict[chn.name].setValue(1 - self.channeldict[chn.name].getValue())
+                                    #self.writeBufferToAudioFile()
+                                    if self.writeThread.isAlive() == False:
+                                        print("Write Thread Starting!")
+                                        self.writeThread.join()
+                                        self.writeThread = threading.Thread(target=self.writeBufferToAudioFile)
+                                        self.writeThread.start()
+                                        #self.writeThread.start()
+                                    else:
+                                        print("Write thread still running.")
                                 print "channel: " + chn.name + " has changed."
                                 self.channeldict["file"].setIgnoreNextButton()
         #GPIO.output(self.eol_pin, True) # for debugging
@@ -532,7 +546,6 @@ class ControlHandler(object):
         line += "\nComm Channels:"
         line += "krecordstatus: " + str(self.record_status_comm.getState()) + '\n'
         line += "\n############################\n"
-
         print line
 
     def printAllControlsVerbose(self):
@@ -553,8 +566,35 @@ class ControlHandler(object):
                 line += "\n"
             line += chn.name + ": " + str(chn.getValue()) + "\t"
         line += "\n############################\n"
-
         print line
 
-        
-        #GPIO.output(self.eol_pin, True)
+    def writeBufferToAudioFile(self):
+        # Get Tables from csound
+        success = False
+        silence_audio = False
+        if self.csound is not None:
+            print("Started Writing Buffer")
+            self.writing_buffer = True
+            self.buffer_size_comm.update()
+            length = self.buffer_size_comm.getState()
+            if (length > 0):
+                print length
+                if self.performance_thread is not None and silence_audio is True:
+                    self.performance_thread.pause()
+                print("Getting tables from Csound")
+                dataLeft = self.csound.table(200)
+                dataRight = self.csound.table(201)
+                print("Jumping to WaveWriter")
+                # Format down to 16-bit signed
+                success = self.writer.WriteStereoWaveFile(dataLeft, dataRight, length)
+                if self.performance_thread is not None and silence_audio is True:
+                    self.performance_thread.play()
+                print("Finished Writing Buffer")
+            else:
+                print("Buffer is currently empty")
+            self.writing_buffer = False
+        if success == False:
+            self.buffer_failure = True
+
+    def dummyThread(self):
+        print "This is a dummy function for initializing a worker thread."

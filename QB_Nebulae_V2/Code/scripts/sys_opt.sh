@@ -22,6 +22,10 @@ sudo killall polkitd
 ## Only needed when Jack2 is compiled with D-Bus support (Jack2 in the AutoStatic RPi audio repo is compiled without D-Bus support)
 #export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 
+## Disable Overcommit protection to allow subprocess forking when < half RAM is available.
+## This may cause hardfaults if more memory than is available is actually committed.
+echo 1 | sudo tee /proc/sys/vm/overcommit_memory
+
 ## Remount /dev/shm to prevent memory allocation errors
 sudo mount -o remount,size=128M /dev/shm
 

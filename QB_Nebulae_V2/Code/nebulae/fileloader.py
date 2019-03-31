@@ -1,6 +1,7 @@
 import glob
 import os
 from subprocess import Popen
+import neb_globals
 #import shutil
 
 class FileLoader(object):
@@ -36,17 +37,22 @@ class FileLoader(object):
               self.currentState += 1
               
     def reload(self):
-        os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+        if neb_globals.remount_fs is True:
+            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
         self.mount()
         if self.usb_mounted == True:
             self.launch_bootled(1)
+            self.copyType("audio")
+            self.copyType("instr")
+            self.copyType("pd")
+            self.umount()
         else:
             self.launch_bootled(0)
-        self.copyType("audio")
-        self.copyType("instr")
-        self.copyType("pd")
-        self.umount()
-        os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+        if self.led_process is not None:
+            # Kill Boot LED
+            self.led_process.kill()
+        if neb_globals.remount_fs is True:
+            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
 
     def mount(self):
         print "Mounting USB Device"
@@ -56,6 +62,8 @@ class FileLoader(object):
     def umount(self):
         print "Unmounting USB Device"
         os.system("umount /dev/sda1" )
+        print "Sync filebuffers to disk."
+        os.system("sync")
         self.usb_mounted = self.isUSBMounted()
 
     def isUSBMounted(self):
@@ -69,6 +77,19 @@ class FileLoader(object):
 
         return False
 
+    def copyFileToUSB(self, filepath):
+        if os.path.isfile(filepath):
+            fileDir = '/mnt/memory'
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            self.mount()
+            if self.isUSBMounted():
+                cmd = "cp " + filepath + " " + fileDir
+                os.system(cmd) 
+                self.umount()
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+
     def copyType(self, fileType):
         fileDir = '/mnt/memory'
         files = []
@@ -80,7 +101,11 @@ class FileLoader(object):
             cmd = "mkdir -p " + fullDir
             os.system(cmd)
             #fullFile = fullDir + "/*" + ext
+            print "Erasing " + fullDir
             cmd = "rm " + fullDir + "/*"
+            os.system(cmd)
+            print "Contents of " + fullDir + " after erasure:"
+            cmd = "ls " + fullDir
             os.system(cmd)
             for f in files:
                 #new_f = f.replace(" ", "\ ").replace("\'", "\\\'")

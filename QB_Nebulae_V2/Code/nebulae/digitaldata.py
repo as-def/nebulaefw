@@ -25,6 +25,9 @@ class DigitalData(object):
         self.button_pulse_time = time.time() * 1000.0
         self.led_pulse_time = time.time() * 1000.0
         self.maximum = maximum
+        # check for out of range selection at init time.
+        if self.state > self.maximum:
+            self.state = 0
         self.time_held = 0
         self.button_pressed = False
         self.long_press_time = 300
@@ -38,7 +41,10 @@ class DigitalData(object):
         self.ignore_button = False
         self.ignore_gate = False
         self.trig_source = "button"
-
+        ## hacky way for making sure LED stays low
+        ## when file is >0 at bootup
+        if name == "file":
+            self.led_state = 0
         if button_gate_mode is BUTTON_GATE_GPIO:
             # Setup both inputs as
             self.gate_src = "GPIO"
@@ -110,8 +116,8 @@ class DigitalData(object):
             if self.button_pressed == True:
                 self.time_held += 1
             if self.time_held > self.long_press_time:
-                print "You long pressed a button"
                 if self.longtouch_cb != None:
+                    print "You long pressed a button"
                     self.longtouch_cb()
                 self.time_held = 0
         
@@ -171,6 +177,8 @@ class DigitalData(object):
                 if action == 1:
                     action = 0
                     self.ignore_next_btrig = False
+                    self.time_held = 0
+                    self.button_pressed = 0
             if self.mode == "triggered":
                 if action == 1:
                     self.button_pulse_time = time.time() * 1000.0

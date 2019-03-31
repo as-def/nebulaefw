@@ -1,7 +1,6 @@
 import os
 import time
 import controlhandler
-#import leddriver
 
 class CalibrationCollector(object):
     def __init__(self):
@@ -9,20 +8,20 @@ class CalibrationCollector(object):
 
     def collect(self):
         self.ch.updateAll()
-        data = []
+        #data = []
         avg = 0
-        numSamps = 128
-        #name = "start"
+        numSamps = 4096
         names = ['start', 'size', 'density', 'overlap', 'blend', 'window', 'speed', 'pitch']
         avgs = {}
         for name in names:
-            for i in range(0,numSamps):
-                self.ch.updateAll()
+            avgs[name] = 0.0
+        for i in range(0, numSamps):
+            self.ch.updateAll()
+            for name in names:
                 val = self.ch.channeldict[name].getRawCVValue()
-                data.append(val)
-                avg += val
-            avg = avg / numSamps
-            avgs[name] = avg
+                avgs[name] += val
+        for name in names:
+            avgs[name] = avgs[name] / numSamps
         filepath = '/home/alarm/QB_Nebulae_V2/Code/misc/'
         filename = 'calibration_data.txt'
         os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")

@@ -9,32 +9,73 @@ import ui
 import fileloader
 import time
 import logger
+import neb_globals
 
+cfg_path = "/home/alarm/QB_Nebulae_V2/Code/config/"
 
-debug = False
+debug = False 
 debug_controls = False
 
 class Nebulae(object):
 
     def __init__(self):
+        if neb_globals.remount_fs is False:
+            print("Nebulae is operating in \"Read/Write\" mode.")
+            print("Filesystem will not be remounted during operation.")
+            os.system("/home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
         print "Nebulae Initializing"
-        #self.c = ctcsound.Csound()    # Create an instance of Csound
+        self.instr_cfg = cfg_path + "bootinstr.txt"
         self.orc_handle = conductor.Conductor() # Initialize Audio File Tables and Csound Score/Orchestra
-        self.currentInstr = "a_granularlooper"
+        #self.currentInstr = "a_granularlooper"
         self.c = None
         self.pt = None 
         self.ui = None
         self.c_handle = None
         self.led_process = None
         self.log = logger.NebLogger()
-        self.new_bank = 'factory'
-        self.new_instr = 'a_granularlooper'
+        # Check the config file for last instr
+        if os.path.isfile(self.instr_cfg) and os.path.getsize(self.instr_cfg) > 0:
+            # Get bank/instr from factory
+            with open(self.instr_cfg, 'rb') as f:
+                print "Reading bootinstr.txt"
+                for line in f:
+                    templist = line.strip().split(',')
+                    if templist[0] == 'bank':
+                        self.new_bank = templist[1]
+                    elif templist[0] == 'instr':
+                        self.new_instr = templist[1] 
+        else:
+            self.new_bank = 'factory'
+            self.new_instr = 'a_granularlooper'
+        self.currentInstr = self.new_instr
+        # Check if file exists, else reset to default instr
+        factory_path = "/home/alarm/QB_Nebulae_V2/Code/instr/"
+        user_path = "/home/alarm/instr/"
+        pd_path = "/home/alarm/pd/"
+        if self.new_bank == 'factory': 
+            path = factory_path + self.new_instr + '.instr'
+        elif self.new_bank == 'user':
+            path = user_path + self.new_instr + '.instr'
+        elif self.new_bank == 'puredata':
+            path = pd_path + self.new_instr + '.pd'
+        else:
+            print "bank not recocgnized."
+            print self.new_bank
+            path = 'factory'
+        if os.path.isfile(path) == False:
+            # set to default instr
+            self.new_bank = 'factory'
+            self.new_instr = 'a_granularlooper'
         self.first_run = True
+        self.last_debug_print = time.time()
 
     def start(self, instr, instr_bank):
         print "Nebulae Starting"
+        if self.currentInstr != self.new_instr:
+            reset_settings_flag = True
+        else:
+            reset_settings_flag = False
         self.currentInstr = instr
-        #self.launch_bootled()
         if self.c is None:
             self.c = ctcsound.Csound()
         self.log.spill_basic_info()
@@ -53,7 +94,6 @@ class Nebulae(object):
             self.c.setOption("-b"+str(configData.get("-b")[0]))
         self.c.setOption("--realtime")
         self.c.setOption("-+rtaudio=alsa") # Set option for Csound
-        #self.c.setOption("--sched")
         if debug is True:
             self.c.setOption("-m7")
         else:
@@ -65,8 +105,12 @@ class Nebulae(object):
         self.c_handle = ch.ControlHandler(self.c, self.orc_handle.numFiles(), configData, self.new_instr, bank=self.new_bank) # Create handler for all csound comm.
         self.loadUI()
         self.pt = ctcsound.CsoundPerformanceThread(self.c.csound()) # Create CsoundPerformanceThread 
+        self.c_handle.setCsoundPerformanceThread(self.pt)
         self.pt.play() # Begin Performing the Score in the perforamnce thread
         self.c_handle.updateAll() # Update all values to ensure their at their initial state.
+        if reset_settings_flag == True:
+            print("Changing Instr File -- Resetting Secondary Settings")
+            self.c_handle.restoreAltToDefault()
 
     def run(self):
         new_instr = None
@@ -77,7 +121,9 @@ class Nebulae(object):
             self.ui.update()
             self.c_handle.updateAll()
             if debug_controls == True:
-                self.c_handle.printAllControls()
+                if time.time() - self.last_debug_print > 0.25:
+                    self.last_debug_print = time.time()
+                    self.c_handle.printAllControls()
             request = self.ui.getReloadRequest()
             if request == True:
                 self.cleanup()
@@ -92,6 +138,9 @@ class Nebulae(object):
             self.c.cleanup()
             self.ui.reload_flag = False # Clear Reload Flag
             print "Reloading " + self.new_instr + " from " + self.new_bank
+            # Store bank/instr to config
+            self.writeBootInstr()
+            # Get bank/instr from factory
             if self.new_bank == "puredata":
                 self.start_puredata(self.new_instr)
                 self.run_puredata()
@@ -110,8 +159,27 @@ class Nebulae(object):
         self.pt.stop()
         self.pt.join()
 
+    def writeBootInstr(self):
+        try:
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            with open(self.instr_cfg, 'w') as f:
+                bankstr = 'bank,'+self.new_bank
+                instrstr = 'instr,'+self.new_instr 
+                f.write(bankstr + '\n')
+                f.write(instrstr + '\n')
+                for line in f:
+                    templist = line.strip().split(',')
+                    if templist[0] == 'bank':
+                        self.new_bank = templist[1]
+                    elif templist[0] == 'instr':
+                        self.new_instr = templist[1] 
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+        except:
+            "Could not write config file."
+
     def start_puredata(self, patch):
-        #self.launch_bootled()
         self.log.spill_basic_info()
         if self.c is not None:
             self.c.cleanup() 
@@ -133,6 +201,7 @@ class Nebulae(object):
         print 'sleeping'
         time.sleep(2)
         self.c_handle = ch.ControlHandler(None, self.orc_handle.numFiles(), None, self.new_instr, bank="puredata")
+        self.c_handle.setCsoundPerformanceThread(None)
         self.c_handle.enterPureDataMode()
         self.loadUI()
         
@@ -155,6 +224,8 @@ class Nebulae(object):
             self.ui.reload_flag = False # Clear Reload Flag
             print "Reloading " + self.new_instr + " from " + self.new_bank
             self.cleanup_puredata()
+            # Store bank/instr to config
+            self.writeBootInstr()
             if self.new_bank == "puredata":
                 self.start_puredata(self.new_instr)
                 self.run_puredata()
@@ -168,23 +239,13 @@ class Nebulae(object):
             sys.exit()
             
     def cleanup_puredata(self): 
-        #self.pt.terminate()
         self.pt.terminate()
-        #self.pt.join()
         self.pt.kill()
-        #os.system("sudo pkill pd")
 
     def loadUI(self):
         print "Killing LED program"
         cmd = "sudo pkill -1 -f /home/alarm/QB_Nebulae_V2/Code/nebulae/bootleds.py"
         os.system(cmd)
-        #print 'Waiting for LED process parent to terminate'
-        #self.led_process.wait()
-        #print 'Done waiting'
-        #if self.led_process is not None:
-        #else:
-            #cmd = "sudo pkill -1 -f /home/alarm/QB_Nebulae_V2/Code/nebulae/bootleds.py"
-            #os.system(cmd)
         if self.ui is None:
             self.ui = ui.UserInterface(self.c_handle) # Create User Interface
         else:
@@ -205,16 +266,9 @@ class Nebulae(object):
 ### NEBULAE ###
 app = Nebulae()
 
-#try: 
-app.start("a_granularlooper", "factory")
-app.run()
-
-#app.start_puredata("rhythmic_chords_tcp")
-#app.run_puredata()
-#except (KeyboardInterrupt, SystemExit):
-#    print "Keyboard Exit, or System Exit detected."
-#    raise
-#except Exception as ex:
-#    template = "An exception of type {0} occurered. Arguments:\n{1!r}"
-#    app.cleanup()
-#    print "Program ended"
+if app.new_bank == "puredata":
+    app.start_puredata(app.new_instr)
+    app.run_puredata()
+else:
+    app.start(app.new_instr, app.new_bank)
+    app.run()

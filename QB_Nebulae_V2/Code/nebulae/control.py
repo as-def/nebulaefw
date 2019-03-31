@@ -73,6 +73,9 @@ class AdcData(object):
         #self.smoothCoeff = 0.125
         self.smoothCoeff = 0.33
         self.hyst_amt = 0.002
+        self.stablized = True
+        self.stable_delta = 0.0
+        self.last_in = 0.0
         if (pot_channel >= 0):
             self.mcp_pot = MCP3208.MCP3208(spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE_POT))
         if (cv_channel >= 0):
@@ -112,7 +115,18 @@ class AdcData(object):
         temp_sum = cv + pot
         temp_rnd = round(temp_sum, 4)
         temp_hyst = addHysteresis(self.curVal, temp_rnd, self.hyst_amt)
-        self.curVal = self.clipControl(temp_hyst)
+        if self.stablized is True:
+            if abs(temp_hyst - self.curVal) > 0.01:
+                self.stablized = False
+        else:
+            #self.stable_delta += abs(temp_hyst - self.curVal)
+            #self.stable_delta += 0.001 * (abs(temp_hyst - self.curVal) - self.stable_delta)
+            if abs(self.stable_delta) < 0.005:
+                self.stablized = True
+            else:
+                self.curVal = self.clipControl(temp_hyst)
+        self.stable_delta = (temp_rnd - self.last_in) + (0.99 * self.stable_delta)
+        self.last_in = temp_rnd
         return self.curVal
 
 
@@ -128,7 +142,7 @@ class AdcData(object):
 
     def getCV(self):
         if (self.cv_channel >= 0):
-            #temp_cv_code = (self.mcp_cv.read_adc(self.cv_channel)) >> 3
+            #temp_cv_code = (self.mcp_cv.read_adc(self.cv_channel)) / 8
             #temp_cv = ((511.0 - temp_cv_code) - 255.0) / 255.0
             temp_cv_code = self.mcp_cv.read_adc(self.cv_channel)
             temp_cv = ((4095.0 - temp_cv_code) - 2047.0) / 2047.0
@@ -244,6 +258,9 @@ class HybridData(object):
         self.filtVal = 0.0
         self.count = 0
         self.raw_cv = 0
+        self.stable_delta = 0.0
+        self.stablized = True
+        self.last_in = 0.0
         self.staticVal = init_val
         self.ignore_enc = False
 
@@ -286,12 +303,18 @@ class HybridData(object):
                 for octave in octaves:
                     if temp_rnd < octave + tolerance and temp_rnd > octave - tolerance:
                         temp_rnd = octave 
-            self.curVal = temp_rnd
-            #if self.staticVal == 0.6 and abs(self.analogVal) < 0.0025:
-            #    self.curVal = 0.6
+            if self.stablized is True:
+                if abs(temp_rnd - self.curVal) > 0.005:
+                    self.stablized = False
+            else:
+                if abs(self.stable_delta) < 0.005:
+                    self.stablized = True
+                self.curVal = temp_rnd
+            # Leaky Integrator for checking stablity
+            self.stable_delta = (temp_rnd - self.last_in) + (0.99 * self.stable_delta)
+            self.last_in = temp_rnd
         else:
             self.curVal = self.staticVal
-
         if (self.curVal > self.maximum):
             self.curVal = self.maximum
         elif (self.curVal < self.minimum):
@@ -428,7 +451,7 @@ class ControlChannel(object):
 
         if self.source == "analog" or self.source == "hybrid": 
             new_offset = self.gatherOffset(self.name)
-            print name + ": new offset = " + str(new_offset)
+            #print name + ": new offset = " + str(new_offset)
             self.setCVOffset(new_offset) 
 
     def setValue(self, val):

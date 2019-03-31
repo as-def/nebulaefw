@@ -136,7 +136,11 @@ class UserInterface(object):
                 self.controlhandler.setInstrSelIdx(tempidx)
                 self.controlhandler.setInstrSelBank(self.controlhandler.currentBank)
                 self.reload_flag = True
-
+            elif self.controlhandler.writing_buffer == True:
+                self.animateBufferWrite()
+            elif self.controlhandler.buffer_failure == True:
+                self.animateBufferFailure()
+                #self.animateEditFunction("freeze")
             else:
                 if self.currentInstr == "a_granularlooper":
                     if self.controlhandler.size_status_comm.getState() == 0:
@@ -230,7 +234,6 @@ class UserInterface(object):
     def animateEditFunction(self, name):
         ## TODO: The abstraction could actually do this animation for any of the four buttons (file, source, reset, freeze)
         if self.controlhandler.getEditFunctionFlag(name) == True:
-            # Blink thrice and clear
             if self.blink_counter < 5:
                 self.prev_blink = self.blink
                 self.blink = (self.now & 100) < 50
@@ -246,6 +249,46 @@ class UserInterface(object):
                 self.set_button_led(name, 0)
         else:
             self.prev_blink = self.blink
+            self.blink = False
+
+    def animateBufferWrite(self):
+        self.prev_blink = self.blink
+        self.blink = (self.now & 500) < 250
+        if self.blink == True:
+            self.set_button_led("freeze", 1) 
+            self.set_button_led("record", 1) 
+        else:
+            self.set_button_led("freeze", 0) 
+            self.set_button_led("record", 0) 
+
+    def animateBufferFailure(self):
+        self.prev_blink = self.blink
+        if (self.controlhandler.buffer_failure == True):
+            if self.blink_counter < 10:
+                self.blink = (self.now & 250) < 125
+                if self.blink == True:
+                    if self.prev_blink == False:
+                        self.blink_counter += 1
+                    self.set_button_led("record", 1) 
+                    self.set_button_led("next", 1) 
+                    self.set_button_led("source", 1) 
+                    self.set_button_led("reset", 1)
+                    self.set_button_led("freeze", 1) 
+                else:
+                    self.set_button_led("record", 0) 
+                    self.set_button_led("next", 0) 
+                    self.set_button_led("source", 0) 
+                    self.set_button_led("reset", 0)
+                    self.set_button_led("freeze", 0) 
+            else:
+                self.controlhandler.buffer_failure = False
+                self.blink_counter = 0
+                self.set_button_led("record", 0) 
+                self.set_button_led("next", 0) 
+                self.set_button_led("source", 0) 
+                self.set_button_led("reset", 0)
+                self.set_button_led("freeze", 0) 
+        else:
             self.blink = False
                 
     def animateRestoration(self):
@@ -521,18 +564,26 @@ class UserInterface(object):
     def set_pitch_amount(self):
         self.pitch_amount = self.controlhandler.getStaticVal("pitch")
         inc = self.get_delta("pitch")
+        inc_size = 0.001
         if self.pitch_click.state() == True:
-            inc = 0
+            #inc = 0
+            inc_size = 0.2
         if self.pitch_delay == -1:
             if inc > 0:
                 if self.pitch_inc_dir == 1:
-                    self.pitch_amount += 0.001 * inc * inc * inc
+                    if inc_size == 0.2:
+                        self.ignore_next_pitch_click = True
+                        self.pitch_delay = self.now + 125
+                    self.pitch_amount += inc_size * inc * inc * inc
                     self.pitch_inc_dir = 1
                 else:
                     self.pitch_inc_dir = 1
             elif inc < 0:
                 if self.pitch_inc_dir == -1:
-                    self.pitch_amount -= 0.001 * (-1 * inc) * (-1 * inc) * (-1 * inc)
+                    if inc_size == 0.2:
+                        self.ignore_next_pitch_click = True
+                        self.pitch_delay = self.now + 125
+                    self.pitch_amount -= inc_size * (-1 * inc) * (-1 * inc) * (-1 * inc)
                     self.pitch_inc_dir = -1
                 else:
                     self.pitch_inc_dir = -1

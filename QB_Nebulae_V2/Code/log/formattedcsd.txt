@@ -1,14 +1,119 @@
-nebconfigbegin
-ksmps,64
--B,2048
--b,512
-sr,48000
-freeze,latching,rising
-reset,triggered,rising
-source,latching,falling
-file,incremental,falling
-record,latching,rising
-nebconfigend
+Beginning of generated CSOUND Score/Orchestraf 0 2147483641
+i1 1 -10
+f 400 0 0 1 "/home/alarm/audio/00_GW_Mbira_Fast.wav" 0 0 1
+f 401 0 0 1 "/home/alarm/audio/01_AB_DRM_Glitch_Drum_Loop_1.wav" 0 0 1
+f 402 0 0 1 "/home/alarm/audio/02_MF_Cymbals.wav" 0 0 1
+f 403 0 0 1 "/home/alarm/audio/03_TH_tape_loop_01.wav" 0 0 1
+f 404 0 0 1 "/home/alarm/audio/04_POB_crinkle2.wav" 0 0 1
+f 405 0 0 1 "/home/alarm/audio/05_MF_Harmonics.wav" 0 0 1
+f 406 0 0 1 "/home/alarm/audio/06_POB_lfo2.wav" 0 0 1
+f 407 0 0 1 "/home/alarm/audio/07_ML_Moon_Beats.wav" 0 0 1
+f 408 0 0 1 "/home/alarm/audio/08_GW_Serbian_Protest.wav" 0 0 1
+f 409 0 0 1 "/home/alarm/audio/09_TH_tape_loop_09.wav" 0 0 1
+f 410 0 0 1 "/home/alarm/audio/10_ML_Piano_B.wav" 0 0 1
+ksmps = 16
+sr = 48000
+
+; File-Looping Orc
+nchnls=2
+0dbfs=1
+; primary controls
+gkpitch chnexport "pitch", 1
+gkspeed chnexport "speed", 1
+gkloopstart chnexport "start", 1
+gkloopsize chnexport "size", 1
+gkdensity chnexport "density", 1
+gkoverlap chnexport "overlap", 1
+gkwindow chnexport "window", 1
+gkfilesel chnexport "file", 1
+gkfreeze chnexport "freeze", 1
+gkreset chnexport "reset", 1
+gkblend chnexport "blend", 1
+gkrecord chnexport "record", 1
+gkfilestate chnexport "filestate", 1
+gksource chnexport "source", 1
+gksourcegate chnexport "sourcegate", 1
+gksourcebuttonstate chnexport "source_state", 1
+gkeol chnexport "eol", 2
+gksizestatus chnexport "sizestatus", 2
+gkrecordstatus chnexport "recordstatus", 2
+gkbufferlength chnexport "bufferlength", 2
+; secondary controls
+gkloopstart_alt chnexport "start_alt", 1
+gkloopsize_alt chnexport "size_alt", 1
+gkdensity_alt chnexport "density_alt", 1
+gkoverlap_alt chnexport "overlap_alt", 1
+gkwindow_alt chnexport "window_alt", 1
+gkfreeze_alt chnexport "freeze_alt", 1
+gkrecord_alt chnexport "record_alt", 1
+gkfile_alt chnexport "file_alt", 1
+gkreset_alt chnexport "reset_alt", 1
+gksource_alt chnexport "source_alt", 1
+gkpitch_alt chnexport "pitch_alt", 1
+gkblend_alt chnexport "blend_alt", 1
+; data buffers -- 100 Files maximum
+gilen[] init 100
+gichn[] init 100
+gSname[] init 100
+gisr[] init 100
+gipeak[] init 100
+            
+gSname[0] = "/home/alarm/audio/00_GW_Mbira_Fast.wav"
+gilen[0] filelen "/home/alarm/audio/00_GW_Mbira_Fast.wav"
+gichn[0] filenchnls "/home/alarm/audio/00_GW_Mbira_Fast.wav"
+gisr[0] filesr "/home/alarm/audio/00_GW_Mbira_Fast.wav"
+gipeak[0] filepeak "/home/alarm/audio/00_GW_Mbira_Fast.wav"
+gSname[1] = "/home/alarm/audio/01_AB_DRM_Glitch_Drum_Loop_1.wav"
+gilen[1] filelen "/home/alarm/audio/01_AB_DRM_Glitch_Drum_Loop_1.wav"
+gichn[1] filenchnls "/home/alarm/audio/01_AB_DRM_Glitch_Drum_Loop_1.wav"
+gisr[1] filesr "/home/alarm/audio/01_AB_DRM_Glitch_Drum_Loop_1.wav"
+gipeak[1] filepeak "/home/alarm/audio/01_AB_DRM_Glitch_Drum_Loop_1.wav"
+gSname[2] = "/home/alarm/audio/02_MF_Cymbals.wav"
+gilen[2] filelen "/home/alarm/audio/02_MF_Cymbals.wav"
+gichn[2] filenchnls "/home/alarm/audio/02_MF_Cymbals.wav"
+gisr[2] filesr "/home/alarm/audio/02_MF_Cymbals.wav"
+gipeak[2] filepeak "/home/alarm/audio/02_MF_Cymbals.wav"
+gSname[3] = "/home/alarm/audio/03_TH_tape_loop_01.wav"
+gilen[3] filelen "/home/alarm/audio/03_TH_tape_loop_01.wav"
+gichn[3] filenchnls "/home/alarm/audio/03_TH_tape_loop_01.wav"
+gisr[3] filesr "/home/alarm/audio/03_TH_tape_loop_01.wav"
+gipeak[3] filepeak "/home/alarm/audio/03_TH_tape_loop_01.wav"
+gSname[4] = "/home/alarm/audio/04_POB_crinkle2.wav"
+gilen[4] filelen "/home/alarm/audio/04_POB_crinkle2.wav"
+gichn[4] filenchnls "/home/alarm/audio/04_POB_crinkle2.wav"
+gisr[4] filesr "/home/alarm/audio/04_POB_crinkle2.wav"
+gipeak[4] filepeak "/home/alarm/audio/04_POB_crinkle2.wav"
+gSname[5] = "/home/alarm/audio/05_MF_Harmonics.wav"
+gilen[5] filelen "/home/alarm/audio/05_MF_Harmonics.wav"
+gichn[5] filenchnls "/home/alarm/audio/05_MF_Harmonics.wav"
+gisr[5] filesr "/home/alarm/audio/05_MF_Harmonics.wav"
+gipeak[5] filepeak "/home/alarm/audio/05_MF_Harmonics.wav"
+gSname[6] = "/home/alarm/audio/06_POB_lfo2.wav"
+gilen[6] filelen "/home/alarm/audio/06_POB_lfo2.wav"
+gichn[6] filenchnls "/home/alarm/audio/06_POB_lfo2.wav"
+gisr[6] filesr "/home/alarm/audio/06_POB_lfo2.wav"
+gipeak[6] filepeak "/home/alarm/audio/06_POB_lfo2.wav"
+gSname[7] = "/home/alarm/audio/07_ML_Moon_Beats.wav"
+gilen[7] filelen "/home/alarm/audio/07_ML_Moon_Beats.wav"
+gichn[7] filenchnls "/home/alarm/audio/07_ML_Moon_Beats.wav"
+gisr[7] filesr "/home/alarm/audio/07_ML_Moon_Beats.wav"
+gipeak[7] filepeak "/home/alarm/audio/07_ML_Moon_Beats.wav"
+gSname[8] = "/home/alarm/audio/08_GW_Serbian_Protest.wav"
+gilen[8] filelen "/home/alarm/audio/08_GW_Serbian_Protest.wav"
+gichn[8] filenchnls "/home/alarm/audio/08_GW_Serbian_Protest.wav"
+gisr[8] filesr "/home/alarm/audio/08_GW_Serbian_Protest.wav"
+gipeak[8] filepeak "/home/alarm/audio/08_GW_Serbian_Protest.wav"
+gSname[9] = "/home/alarm/audio/09_TH_tape_loop_09.wav"
+gilen[9] filelen "/home/alarm/audio/09_TH_tape_loop_09.wav"
+gichn[9] filenchnls "/home/alarm/audio/09_TH_tape_loop_09.wav"
+gisr[9] filesr "/home/alarm/audio/09_TH_tape_loop_09.wav"
+gipeak[9] filepeak "/home/alarm/audio/09_TH_tape_loop_09.wav"
+gSname[10] = "/home/alarm/audio/10_ML_Piano_B.wav"
+gilen[10] filelen "/home/alarm/audio/10_ML_Piano_B.wav"
+gichn[10] filenchnls "/home/alarm/audio/10_ML_Piano_B.wav"
+gisr[10] filesr "/home/alarm/audio/10_ML_Piano_B.wav"
+gipeak[10] filepeak "/home/alarm/audio/10_ML_Piano_B.wav"
+ginumfiles init 11
 
 ;previous settings:
 ;ksmps,128
@@ -997,3 +1102,4 @@ instr 2
     endif
     
 endin
+End of generated CSOUND Score/Orchestra

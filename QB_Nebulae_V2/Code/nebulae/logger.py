@@ -1,5 +1,6 @@
 import os
 from time import gmtime, strftime
+import neb_globals
 
 class NebLogger(object):
 
@@ -26,7 +27,8 @@ class NebLogger(object):
                 self.spill_cpu_data(self.remotepath)
                 self.unmount_usb()
         if self.write_local == True:
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
             print "Adding to Local Log"
             for key in self.system_data.iterkeys():
                 cmd_suffix = " >> /home/alarm/QB_Nebulae_V2/Code/log/neb_log.txt"
@@ -35,7 +37,8 @@ class NebLogger(object):
                 cmd_local = "echo \"" + ts + item + "\"" + cmd_suffix
                 os.system(cmd_local)
             self.spill_cpu_data(self.localpath)
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
 
     def spill_cpu_data(self, path):
         # We'll log the cpu temp, and the amount of available memory 
@@ -54,26 +57,30 @@ class NebLogger(object):
         if self.usb_status == True:
             print "USB drive is already mounted"
         else:
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
             print "Mounting USB Device"
             os.system("mount /dev/sda1 /mnt/memory")
             self.check_usb_status()
             if self.usb_status == True:
                 print "USB drive is now mounted."
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
 
     def unmount_usb(self):
         self.check_usb_status() 
         if self.usb_status == False:
             print "USB drive is not mounted"
         else:
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
             print "Unmounting USB Device"
             os.system("umount /dev/sda1")
             self.check_usb_status()
             if self.usb_status == False:
                 print "USB drive is now safe to eject."
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
 
     def acquireSystemData(self):
         with open("/home/alarm/QB_Nebulae_V2/Code/config.txt", "r") as f:

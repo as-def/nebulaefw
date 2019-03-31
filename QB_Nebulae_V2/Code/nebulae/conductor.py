@@ -36,6 +36,7 @@ gksourcebuttonstate chnexport "source_state", 1
 gkeol chnexport "eol", 2
 gksizestatus chnexport "sizestatus", 2
 gkrecordstatus chnexport "recordstatus", 2
+gkbufferlength chnexport "bufferlength", 2
 ; secondary controls
 gkloopstart_alt chnexport "start_alt", 1
 gkloopsize_alt chnexport "size_alt", 1
@@ -58,10 +59,10 @@ gipeak[] init 100
             """
 
         self.source = instr_bank
-        if self.source is "factory":
-            self.instr_dir = "/home/alarm/QB_Nebulae_V2/Code/instr/"
-        elif self.source is "user":
+        if self.source is "user":
             self.instr_dir = "/home/alarm/instr/"
+        else: #if self.source is "factory":
+            self.instr_dir = "/home/alarm/QB_Nebulae_V2/Code/instr/"
         self.instrparser.parse(self.instr, self.instr_dir)
         if self.instrparser.configEntry("ksmps") is not None:
             self.preamble = "ksmps = " + str(self.instrparser.configEntry("ksmps")[0]) + "\n"
@@ -91,14 +92,16 @@ gipeak[] init 100
         self.curOrc = self.preamble + self.orcheader + self.arrayinitlines + self.instrparser.getInstrString()
         self.curSco = sco
         try:
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh rw")
             if os.path.isdir("/home/alarm/QB_Nebulae_V2/Code/log") != True:
                 os.system("mkdir -p /home/alarm/QB_Nebulae_V2/Code/log")
             with open('/home/alarm/QB_Nebulae_V2/Code/log/formattedcsd.txt', 'w') as f:
                 f.write("Beginning of generated CSOUND Score/Orchestra")
                 f.write(self.curSco + self.curOrc)
                 f.write("End of generated CSOUND Score/Orchestra")
-            os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
+            if neb_globals.remount_fs is True:
+                os.system("sh /home/alarm/QB_Nebulae_V2/Code/scripts/mountfs.sh ro")
         except:
             print "Could not write log of current csd"
     
